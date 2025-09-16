@@ -8,7 +8,7 @@
 return {
   "AstroNvim/astrocommunity",
   { import = "astrocommunity.pack.tailwindcss" },
-  { import = "astrocommunity.colorscheme.nightfox-nvim" },
+  { import = "astrocommunity.colorscheme.rose-pine" },
   -- { import = "astrocommunity.completion.cmp-cmdline" },
   { import = "astrocommunity.recipes.cache-colorscheme" },
   { import = "astrocommunity.completion.cmp-nerdfont" },
