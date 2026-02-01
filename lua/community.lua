@@ -17,5 +17,6 @@ return {
   { import = "astrocommunity.comment.ts-comments-nvim" },
   -- { import = "astrocommunity.recipes.astrolsp-auto-signature-help" },
   { import = "astrocommunity.recipes.diagnostic-virtual-lines-current-line" },
+  { import = "astrocommunity.utility.noice-nvim" },
   -- import/override with your plugins folder
 }
