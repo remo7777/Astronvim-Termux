@@ -74,6 +74,10 @@ pkg install -y \
 > **Note on `fish_indent` & Fish Shell:**  
 > `fish_indent` (and `fish` diagnostics) comes pre-packaged with the `fish` shell. Installing `pkg install fish` in Step 1 automatically installs `fish_indent` at `/data/data/com.termux/files/usr/bin/fish_indent`. `none-ls` in this configuration automatically detects it for formatting `.fish` files.
 
+> **Note on C/Rust Native Compilations (`ndk-multilib`):**  
+> If you are compiling C/C++ or Rust libraries that link directly against Android NDK native shared libraries (like `liblog`, `libandroid`, `libvulkan`), install NDK native stubs via:  
+> `pkg install ndk-multilib ndk-multilib-native-stubs`
+
 ### Step 2: Install Global npm & LuaRocks Packages (Including `fish-lsp`)
 
 Install Node.js based LSPs/formatters, `fish-lsp`, and the Lua-based TeX LSP (`digestif`):
@@ -163,3 +167,70 @@ To test loaded AstroLSP server status from the command line:
 ```bash
 nvim --headless +":lua print(vim.inspect(require('astrolsp').config.servers))" +q
 ```
+
+---
+
+## ⚡ Building `blink.cmp` Natively on Termux (`libblink_cmp_fuzzy.so`)
+
+`blink.cmp` uses a C/Rust dynamic shared library (`libblink_cmp_fuzzy.so`) for ultra-fast fuzzy completion matching. Precompiled glibc binaries fail on Android/Termux, so it must be built natively using Cargo.
+
+### Requirements
+- **Rust Compiler & Toolchain**: `pkg install rust build-essential git`
+
+### Manual Build Steps
+
+```bash
+# 1. Navigate to the blink.cmp plugin directory in Lazy:
+cd ~/.local/share/nvim/lazy/blink.cmp
+
+# 2. Build the shared library using Cargo:
+cargo build --release
+
+# 3. Verify the generated shared library:
+ls -lh target/release/libblink_cmp_fuzzy.so
+```
+
+### Lazy.nvim Automatic Build Specification
+
+In your Neovim plugin setup, force `lazy.nvim` to build the Rust library natively on update:
+
+```lua
+{
+  "Saghen/blink.cmp",
+  build = "cargo build --release",
+  opts = {
+    -- Your blink.cmp configuration options
+  },
+}
+```
+
+---
+
+## 📱 32-Bit Termux (ARMv7 / `armhf` / `i686`) Fixes & Guide
+
+If you are running Termux on a 32-bit Android device (`armv7l` or `i686`), precompiled 64-bit binaries from Mason or GitHub releases will fail. Follow these solutions:
+
+### 1. Ensure Mason is Disabled
+In `lua/plugins/astrolsp.lua`, ensure `mason = false` remains set. This forces AstroLSP to look for system binaries installed via `pkg`, `luarocks`, `cargo`, and `npm`.
+
+### 2. Install Native 32-bit Packages
+Always use Termux's native package manager to fetch 32-bit compiled binaries:
+
+```bash
+pkg update && pkg upgrade -y
+pkg install -y git neovim build-essential clang rust luarocks nodejs-lts python tree-sitter
+```
+
+### 3. Enable TUR (Termux User Repository) for Missing Packages
+If a specific LSP package is missing in 32-bit main repos, install `tur-repo`:
+
+```bash
+pkg install tur-repo
+pkg update
+```
+
+### 4. Compiling `blink.cmp` or Cargo Crates on 32-Bit
+Running `cargo build --release` inside plugin folders automatically detects 32-bit architecture (`armv7-linux-androideabi`) and compiles compatible `.so` dynamic libraries natively on your device.
+
+### 5. Treesitter Parser Compilation
+Ensure `clang` and `build-essential` are installed so `nvim-treesitter` can compile 32-bit parser binaries (`.so`) on the fly when opening files for the first time.
