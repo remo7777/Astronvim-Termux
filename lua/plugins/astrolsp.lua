@@ -5,8 +5,10 @@ return {
     -- Helper: detect installed binaries (checks absolute path or PATH)
     local servers = {}
     local function add(name, path)
-      if vim.fn.executable(path) == 1 or vim.fn.executable(name) == 1 then
-        table.insert(servers, name)
+      if (path and vim.fn.executable(path) == 1) or vim.fn.executable(name) == 1 then
+        if not vim.tbl_contains(servers, name) then
+          table.insert(servers, name)
+        end
       end
     end
 
@@ -19,8 +21,9 @@ return {
     add("rust_analyzer", "/data/data/com.termux/files/usr/bin/rust-analyzer")
     add("fish_lsp", "/data/data/com.termux/files/usr/bin/fish-lsp")
     add("fish_lsp", "/data/data/com.termux/files/home/fish-lsp/bin/fish-lsp")
-    add("digestif", "/data/data/com.termux/files/usr/bin/digestif")
+    add("texlab", "/data/data/com.termux/files/usr/bin/texlab")
     add("texlab", "/data/data/com.termux/files/home/.cargo/bin/texlab")
+    add("digestif", "/data/data/com.termux/files/usr/bin/digestif")
 
     return {
       mason = false,
@@ -115,7 +118,7 @@ return {
             or (vim.fn.executable("/data/data/com.termux/files/home/.cargo/bin/texlab") == 1
               and { "/data/data/com.termux/files/home/.cargo/bin/texlab" }
               or { "texlab" }),
-          filetypes = { "tex", "bib" },
+          filetypes = { "tex", "plaintex", "bib" },
         },
       },
 
