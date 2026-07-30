@@ -1,28 +1,33 @@
 # AstroNvim Termux Setup 🚀
 
-A pre-configured, mobile-optimized [AstroNvim](https://github.com/AstroNvim/AstroNvim) **v6+** setup tailored specifically for **Termux (Android)** and **Linux** environments.
+A pre-configured, mobile-optimized [AstroNvim](https://github.com/AstroNvim/AstroNvim) **v6+** configuration tailored specifically for **Termux (Android)** and **Linux** environments.
 
-This configuration uses native binary detection to bypass Mason binary compatibility issues on Termux, providing high-performance LSP servers, Treesitter parsers, and None-LS formatters.
+This setup uses native binary detection to bypass Mason glibc compatibility issues on Android, providing high-performance LSP servers, Treesitter parsers, None-LS formatters, and Live PDF Preview for LaTeX.
 
 ---
 
 ## 📋 Table of Contents
 
-- [Supported Languages & LSPs](#-supported-languages--lsps)
-- [System Requirements & Dependencies](#-system-requirements--dependencies)
+- [Supported Languages & Tools](#-supported-languages--tools)
+- [System Requirements](#-system-requirements)
 - [Step-by-Step Installation Guide](#-step-by-step-installation-guide)
-  - [Step 1: Update & Install Termux Packages](#step-1-update--install-termux-packages)
+  - [Step 1: Install Termux System Packages](#step-1-install-termux-system-packages)
   - [Step 2: Install Global npm & LuaRocks Packages](#step-2-install-global-npm--luarocks-packages)
-  - [Step 3: Install Cargo Packages (TeXLab)](#step-3-install-cargo-packages-texlab)
+  - [Step 3: Optional Android NDK Native Stubs](#step-3-optional-android-ndk-native-stubs)
   - [Step 4: Update Shell PATH](#step-4-update-shell-path)
   - [Step 5: Backup Existing Neovim Configuration](#step-5-backup-existing-neovim-configuration)
-  - [Step 6: Clone Configuration Repository](#step-6-clone-configuration-repository)
+  - [Step 6: Clone Repository](#step-6-clone-repository)
   - [Step 7: Launch Neovim](#step-7-launch-neovim)
-- [Verification & Health Check](#-verification--health-check)
+- [📄 LaTeX Environment & Live PDF Preview](#-latex-environment--live-pdf-preview)
+  - [LaTeX Features](#latex-features)
+  - [WhichKey Keymaps (Buffer-Local)](#whichkey-keymaps-buffer-local)
+- [⚡ Building blink.cmp Natively](#-building-blinkcmp-natively-libblink_cmp_fuzzyso)
+- [📱 32-Bit Termux (ARMv7 / i686) Guide](#-32-bit-termux-armv7--i686-guide)
+- [🔍 Verification & Diagnostics](#-verification--diagnostics)
 
 ---
 
-## 🛠 Supported Languages & LSPs
+## 🛠 Supported Languages & Tools
 
 | Language / Filetype | Language Server (LSP) | Formatter / Linter | Binary Source |
 | :--- | :--- | :--- | :--- |
@@ -30,21 +35,25 @@ This configuration uses native binary detection to bypass Mason binary compatibi
 | **Bash / Shell** | `bashls` | `shfmt` | `npm` / Termux `pkg` |
 | **C / C++ / ObjC** | `clangd` / `ccls` | `clang-format` | Termux `pkg` |
 | **Rust** | `rust_analyzer` | `cargo fmt` | Termux `pkg` / Cargo |
-| **LaTeX / TeX** | `digestif` / `texlab` | Native TeX | LuaRocks / Cargo |
+| **LaTeX / TeX** | `texlab` / `digestif` | LSP / `latexindent` | Termux `pkg` / LuaRocks |
 | **JSON / JQ** | `jq_lsp` | `prettier` | Termux `pkg` / `npm` |
-| **Fish Shell** | `fish_lsp` | `fish_indent` | Local / Termux `pkg` |
+| **Fish Shell** | `fish_lsp` | `fish_indent` | `npm` / Termux `pkg` |
+| **Markdown / Web** | `render-markdown` | `prettier` | `npm` / Lazy Spec |
 
 ---
 
-## ⚙️ System Requirements & Dependencies
+## ⚙️ System Requirements
 
-Before setting up this configuration on a fresh Termux / Linux installation, make sure all compiler toolchains and required language servers are installed.
+- **Termux** on Android (ARM64 `aarch64` or 32-bit `armv7l`).
+- **Neovim 0.10+** (AstroNvim v6+ compatible).
+- C/C++ build toolchain (`clang`, `build-essential`, `make`).
+- Rust toolchain (`cargo`, `rustc`).
 
 ---
 
 ## 📥 Step-by-Step Installation Guide
 
-### Step 1: Update & Install Termux Packages
+### Step 1: Install Termux System Packages
 
 Run the following command in Termux to install Neovim, compilers, development tools, and native LSP packages:
 
@@ -73,13 +82,9 @@ pkg install -y \
 ```
 
 > **Note on `fish_indent` & Fish Shell:**  
-> `fish_indent` (and `fish` diagnostics) comes pre-packaged with the `fish` shell. Installing `pkg install fish` in Step 1 automatically installs `fish_indent` at `/data/data/com.termux/files/usr/bin/fish_indent`. `none-ls` in this configuration automatically detects it for formatting `.fish` files.
+> `fish_indent` comes pre-packaged with `fish`. Installing `pkg install fish` automatically places `fish_indent` at `/data/data/com.termux/files/usr/bin/fish_indent`. `none-ls` automatically detects it for formatting `.fish` files.
 
-> **Note on C/Rust Native Compilations (`ndk-multilib`):**  
-> If you are compiling C/C++ or Rust libraries that link directly against Android NDK native shared libraries (like `liblog`, `libandroid`, `libvulkan`), install NDK native stubs via:  
-> `pkg install ndk-multilib ndk-multilib-native-stubs`
-
-### Step 2: Install Global npm & LuaRocks Packages (Including `fish-lsp`)
+### Step 2: Install Global npm & LuaRocks Packages
 
 Install Node.js based LSPs/formatters, `fish-lsp`, and the Lua-based TeX LSP (`digestif`):
 
@@ -100,18 +105,17 @@ luarocks install digestif
 > cp fish_files/fish-lsp.fish ~/.config/fish/completions/
 > ```
 
-### Step 3: TeXLab LSP (Included via Termux `pkg`)
+### Step 3: Optional Android NDK Native Stubs
 
-`texlab` is included directly via `pkg install texlab` in Step 1.
+If you are compiling C/C++ or Rust libraries that link directly against Android NDK native shared libraries (like `liblog`, `libandroid`, `libvulkan`), install NDK native stubs:
 
-> **Optional (Cargo Build):** If you prefer building the latest `texlab` from source via Cargo:
-> ```bash
-> cargo install texlab
-> ```
+```bash
+pkg install ndk-multilib ndk-multilib-native-stubs
+```
 
 ### Step 4: Update Shell PATH
 
-Ensure your shell (`.bashrc` or `.zshrc` or `config.fish`) includes `~/.cargo/bin` and `~/.local/bin` in your environment `PATH`.
+Ensure your shell (`~/.bashrc`, `~/.zshrc`, or `config.fish`) includes `~/.cargo/bin` and `~/.local/bin` in your environment `PATH`.
 
 Add the following to `~/.bashrc`:
 
@@ -136,7 +140,7 @@ mv ~/.local/state/nvim ~/.local/state/nvim.bak
 mv ~/.cache/nvim ~/.cache/nvim.bak
 ```
 
-### Step 6: Clone Configuration Repository
+### Step 6: Clone Repository
 
 Clone this repository into `~/.config/nvim`:
 
@@ -146,7 +150,7 @@ git clone https://github.com/remo7777/Astronvim-Termux ~/.config/nvim
 
 ### Step 7: Launch Neovim
 
-Start Neovim for the first time. Plugins will automatically download and install via `lazy.nvim`:
+Start Neovim for the first time. Plugins will automatically download and sync via `lazy.nvim`:
 
 ```bash
 nvim
@@ -154,24 +158,35 @@ nvim
 
 ---
 
-## 🔍 Verification & Health Check
+## 📄 LaTeX Environment & Live PDF Preview
 
-Inside Neovim, verify that all plugins and LSPs are installed properly:
+This setup includes a complete LaTeX editing suite with **TeXLab LSP**, **VimTeX**, and **Knap Live PDF Preview**.
 
-```vim
-:checkhealth
-:LspInfo
+### LaTeX Features
+1. **TeXLab LSP**: Autocompletion, environment completion, and syntax checks for `.tex` and `.plaintex` files.
+2. **VimTeX Integration**: AstroCommunity VimTeX integration (`astrocommunity.markdown-and-latex.vimtex`) for syntax highlighting, TOC navigation (`:VimtexTocOpen`), and environment motions without compiler warnings.
+3. **Knap Live PDF Preview**: Automatic background compilation on save (`:w`) using `pdflatex` / cloud fallback engine, launched automatically via `xdg-open`.
+
+### WhichKey Keymaps (Buffer-Local)
+
+The `<Leader>k` group is **buffer-local** and appears in WhichKey **only when editing LaTeX files** (`.tex`, `.plaintex`). On non-LaTeX files (`.sh`, `.lua`, `.py`, `.c`), `<Leader>k` is completely hidden.
+
+When editing a `.tex` file, press `<Space>` (Leader key) to see:
+
+```text
+k - 󰈦 LaTeX
+├── p - Toggle Live PDF Preview
+├── v - Jump to PDF Viewer
+└── c - Close PDF Viewer
 ```
 
-To test loaded AstroLSP server status from the command line:
-
-```bash
-nvim --headless +":lua print(vim.inspect(require('astrolsp').config.servers))" +q
-```
+- `<Leader>kp` : Toggle Live Auto-Preview ON/OFF (Compiles on save and opens PDF via `xdg-open`)
+- `<Leader>kv` : Refresh / Jump to PDF Viewer
+- `<Leader>kc` : Close PDF Viewer
 
 ---
 
-## ⚡ Building `blink.cmp` Natively on Termux (`libblink_cmp_fuzzy.so`)
+## ⚡ Building `blink.cmp` Natively (`libblink_cmp_fuzzy.so`)
 
 `blink.cmp` uses a C/Rust dynamic shared library (`libblink_cmp_fuzzy.so`) for ultra-fast fuzzy completion matching. Precompiled glibc binaries fail on Android/Termux, so it must be built natively using Cargo.
 
@@ -207,7 +222,7 @@ In your Neovim plugin setup, force `lazy.nvim` to build the Rust library nativel
 
 ---
 
-## 📱 32-Bit Termux (ARMv7 / `armhf` / `i686`) Fixes & Guide
+## 📱 32-Bit Termux (ARMv7 / `armhf` / `i686`) Guide
 
 If you are running Termux on a 32-bit Android device (`armv7l` or `i686`), precompiled 64-bit binaries from Mason or GitHub releases will fail. Follow these solutions:
 
@@ -238,41 +253,17 @@ Ensure `clang` and `build-essential` are installed so `nvim-treesitter` can comp
 
 ---
 
-## 📄 Compiling LaTeX (`.tex`) to PDF in Termux
+## 🔍 Verification & Diagnostics
 
-To compile `.tex` files into `.pdf` documents in Termux and inside Neovim, you have two options:
+Inside Neovim, verify that all plugins and LSPs are installed properly:
 
-### Option 1: `tectonic` (Recommended – Modern & Fast)
-`tectonic` is a Rust-based TeX engine that automatically downloads missing packages on demand and directly compiles `.tex` into `.pdf`.
-
-```bash
-# 1. Install tectonic in Termux:
-pkg install tectonic
-
-# 2. Compile a .tex file to PDF:
-tectonic document.tex
+```vim
+:checkhealth
+:LspInfo
 ```
 
-### Option 2: `texlive-bin` (Traditional TeXLive Engine)
-Provides `pdflatex`, `xelatex`, `lualatex`, and `latexmk`.
+To test loaded AstroLSP server status from the command line:
 
 ```bash
-# 1. Install TeXLive binaries in Termux:
-pkg install texlive-bin
-
-# 2. Compile using pdflatex or latexmk:
-pdflatex document.tex
-# or
-latexmk -pdf document.tex
+nvim --headless +":lua print(vim.inspect(require('astrolsp').config.servers))" +q
 ```
-
-### Live PDF Preview in Browser / Viewer (`knap.nvim` + `vimtex`)
-
-This configuration includes `frabjous/knap` and `vimtex` for automatic live PDF previewing and LaTeX editing.
-
-The `<Leader>k` group is **buffer-local** and appears in WhichKey **only when editing LaTeX files** (`.tex`, `.plaintex`):
-
-- `<Leader>k` (`󰈦 LaTeX`):
-  - `p` : Toggle Live Auto-Preview ON/OFF (Compiles on save and opens PDF via `xdg-open`)
-  - `v` : Refresh / Jump to PDF Viewer
-  - `c` : Close PDF Viewer
