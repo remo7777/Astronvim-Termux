@@ -68,7 +68,8 @@ pkg install -y \
   stylua \
   tree-sitter \
   texinfo \
-  texlab
+  texlab \
+  tectonic
 ```
 
 > **Note on `fish_indent` & Fish Shell:**  
@@ -234,3 +235,44 @@ Running `cargo build --release` inside plugin folders automatically detects 32-b
 
 ### 5. Treesitter Parser Compilation
 Ensure `clang` and `build-essential` are installed so `nvim-treesitter` can compile 32-bit parser binaries (`.so`) on the fly when opening files for the first time.
+
+---
+
+## 📄 Compiling LaTeX (`.tex`) to PDF in Termux
+
+To compile `.tex` files into `.pdf` documents in Termux and inside Neovim, you have two options:
+
+### Option 1: `tectonic` (Recommended – Modern & Fast)
+`tectonic` is a Rust-based TeX engine that automatically downloads missing packages on demand and directly compiles `.tex` into `.pdf`.
+
+```bash
+# 1. Install tectonic in Termux:
+pkg install tectonic
+
+# 2. Compile a .tex file to PDF:
+tectonic document.tex
+```
+
+### Option 2: `texlive-bin` (Traditional TeXLive Engine)
+Provides `pdflatex`, `xelatex`, `lualatex`, and `latexmk`.
+
+```bash
+# 1. Install TeXLive binaries in Termux:
+pkg install texlive-bin
+
+# 2. Compile using pdflatex or latexmk:
+pdflatex document.tex
+# or
+latexmk -pdf document.tex
+```
+
+### Live PDF Preview in Browser / Viewer (`knap.nvim` + `vimtex`)
+
+This configuration includes `frabjous/knap` and `vimtex` for automatic live PDF previewing and LaTeX editing.
+
+The `<Leader>k` group is **buffer-local** and appears in WhichKey **only when editing LaTeX files** (`.tex`, `.plaintex`):
+
+- `<Leader>k` (`󰈦 LaTeX`):
+  - `p` : Toggle Live Auto-Preview ON/OFF (Compiles on save and opens PDF via `xdg-open`)
+  - `v` : Refresh / Jump to PDF Viewer
+  - `c` : Close PDF Viewer

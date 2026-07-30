@@ -11,5 +11,5 @@ return {
   { import = "astrocommunity.colorscheme.catppuccin" },
   { import = "astrocommunity.utility.noice-nvim" },
   { import = "astrocommunity.fuzzy-finder.snacks-picker" },
-  -- import/override with your plugins folder
+  { import = "astrocommunity.markdown-and-latex.vimtex" },
 }

@@ -46,6 +46,7 @@ return {
             "jq",
             "rust",
             "tex",
+            "plaintex",
           },
         },
         timeout_ms = 3000,
