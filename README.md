@@ -62,7 +62,7 @@ This setup uses native binary detection to bypass Mason glibc compatibility issu
 Run the following command in Termux to install Neovim, compilers, development tools, PDF generators, and native LSP packages:
 
 ```bash
-pkg update && pkg upgrade -y
+apt update && yes | upgrade
 pkg install -y \
   git \
   neovim \
