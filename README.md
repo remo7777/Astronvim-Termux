@@ -2,7 +2,7 @@
 
 A pre-configured, mobile-optimized [AstroNvim](https://github.com/AstroNvim/AstroNvim) **v6+** configuration tailored specifically for **Termux (Android)** and **Linux** environments.
 
-This setup uses native binary detection to bypass Mason glibc compatibility issues on Android, providing high-performance LSP servers, Treesitter parsers, None-LS formatters, and Live PDF Preview for LaTeX.
+This setup uses native binary detection to bypass Mason glibc compatibility issues on Android, providing high-performance LSP servers, Treesitter parsers, None-LS formatters, and Live PDF Preview for LaTeX and Markdown files.
 
 ---
 
@@ -18,9 +18,11 @@ This setup uses native binary detection to bypass Mason glibc compatibility issu
   - [Step 5: Backup Existing Neovim Configuration](#step-5-backup-existing-neovim-configuration)
   - [Step 6: Clone Repository](#step-6-clone-repository)
   - [Step 7: Launch Neovim](#step-7-launch-neovim)
-- [📄 LaTeX Environment & Live PDF Preview](#-latex-environment--live-pdf-preview)
-  - [LaTeX Features](#latex-features)
+- [📄 LaTeX & Markdown Live PDF Preview](#-latex--markdown-live-pdf-preview)
+  - [Preview Features](#preview-features)
   - [WhichKey Keymaps (Buffer-Local)](#whichkey-keymaps-buffer-local)
+  - [Termux LD_PRELOAD Environment Fix](#termux-ld_preload-environment-fix)
+- [🤖 Smali (Android Bytecode) LSP Environment](#-smali-android-bytecode-lsp-environment)
 - [⚡ Building blink.cmp Natively](#-building-blinkcmp-natively-libblink_cmp_fuzzyso)
 - [📱 32-Bit Termux (ARMv7 / i686) Guide](#-32-bit-termux-armv7--i686-guide)
 - [🔍 Verification & Diagnostics](#-verification--diagnostics)
@@ -36,9 +38,10 @@ This setup uses native binary detection to bypass Mason glibc compatibility issu
 | **C / C++ / ObjC** | `clangd` / `ccls` | `clang-format` | Termux `pkg` |
 | **Rust** | `rust_analyzer` | `cargo fmt` | Termux `pkg` / Cargo |
 | **LaTeX / TeX** | `texlab` / `digestif` | LSP / `latexindent` | Termux `pkg` / LuaRocks |
+| **Markdown / Web** | `render-markdown` | `prettier` | Termux `pkg` / `npm` / Lazy Spec |
 | **JSON / JQ** | `jq_lsp` | `prettier` | Termux `pkg` / `npm` |
 | **Fish Shell** | `fish_lsp` | `fish_indent` | `npm` / Termux `pkg` |
-| **Markdown / Web** | `render-markdown` | `prettier` | `npm` / Lazy Spec |
+| **Smali (Android Bytecode)** | `smali_lsp` | LSP Diagnostics | Built fat JAR (`smali-lsp-1.5.0.jar`) |
 
 ---
 
@@ -48,6 +51,7 @@ This setup uses native binary detection to bypass Mason glibc compatibility issu
 - **Neovim 0.10+** (AstroNvim v6+ compatible).
 - C/C++ build toolchain (`clang`, `build-essential`, `make`).
 - Rust toolchain (`cargo`, `rustc`).
+- `typst` & `pandoc` for PDF compilation and live preview.
 
 ---
 
@@ -55,7 +59,7 @@ This setup uses native binary detection to bypass Mason glibc compatibility issu
 
 ### Step 1: Install Termux System Packages
 
-Run the following command in Termux to install Neovim, compilers, development tools, and native LSP packages:
+Run the following command in Termux to install Neovim, compilers, development tools, PDF generators, and native LSP packages:
 
 ```bash
 pkg update && pkg upgrade -y
@@ -78,7 +82,9 @@ pkg install -y \
   tree-sitter \
   texinfo \
   texlab \
-  tectonic
+  tectonic \
+  typst \
+  pandoc
 ```
 
 > **Note on `fish_indent` & Fish Shell:**  
@@ -95,15 +101,6 @@ npm install -g bash-language-server prettier @fish-lsp/fish-lsp
 # Install digestif (LaTeX LSP) via LuaRocks
 luarocks install digestif
 ```
-
-> **Alternative (`fish-lsp` from Source):**  
-> If you prefer building `fish-lsp` from source instead of global npm:
-> ```bash
-> git clone https://github.com/fish-lsp/fish-lsp.git ~/fish-lsp
-> cd ~/fish-lsp && npm install && npm run build
-> mkdir -p ~/.config/fish/completions
-> cp fish_files/fish-lsp.fish ~/.config/fish/completions/
-> ```
 
 ### Step 3: Optional Android NDK Native Stubs
 
@@ -158,31 +155,55 @@ nvim
 
 ---
 
-## 📄 LaTeX Environment & Live PDF Preview
+## 📄 LaTeX & Markdown Live PDF Preview
 
-This setup includes a complete LaTeX editing suite with **TeXLab LSP**, **VimTeX**, and **Knap Live PDF Preview**.
+This setup includes a complete document editing suite with **TeXLab LSP**, **VimTeX**, and **Knap Live PDF Preview** supporting both **LaTeX (`.tex`)** and **Markdown (`.md`)** files.
 
-### LaTeX Features
-1. **TeXLab LSP**: Autocompletion, environment completion, and syntax checks for `.tex` and `.plaintex` files.
-2. **VimTeX Integration**: AstroCommunity VimTeX integration (`astrocommunity.markdown-and-latex.vimtex`) for syntax highlighting, TOC navigation (`:VimtexTocOpen`), and environment motions without compiler warnings.
-3. **Knap Live PDF Preview**: Automatic background compilation on save (`:w`) using `pdflatex` / cloud fallback engine, launched automatically via `xdg-open`.
+### Preview Features
+1. **Typst Engine**: Uses `typst` as the PDF rendering engine for ultra-fast, high-quality compilation with full UTF-8 Unicode and Emoji support (`📘`, `💡`, `🏋️`).
+2. **TeXLab LSP Tuning**: Suppresses harmless `"Unused label"` diagnostic hints while retaining error diagnostics.
+3. **VimTeX Integration**: AstroCommunity VimTeX integration (`astrocommunity.markdown-and-latex.vimtex`) for LaTeX syntax highlighting, TOC navigation (`:VimtexTocOpen`), and environment motions.
+4. **Android Native Viewer**: Uses `termux-open` to automatically open and refresh generated PDF files in your default Android PDF Viewer / Reader.
 
 ### WhichKey Keymaps (Buffer-Local)
 
-The `<Leader>k` group is **buffer-local** and appears in WhichKey **only when editing LaTeX files** (`.tex`, `.plaintex`). On non-LaTeX files (`.sh`, `.lua`, `.py`, `.c`), `<Leader>k` is completely hidden.
+The `<Leader>k` group is **buffer-local** and appears in WhichKey when editing LaTeX (`.tex`, `.plaintex`) or Markdown (`.md`) files. On other files (`.sh`, `.lua`, `.py`, `.c`), `<Leader>k` remains hidden.
 
-When editing a `.tex` file, press `<Space>` (Leader key) to see:
+When editing a `.tex` or `.md` file, press `<Space>` (Leader key) to see:
 
 ```text
-k - 󰈦 LaTeX
+k - 󰈦 Preview
 ├── p - Toggle Live PDF Preview
 ├── v - Jump to PDF Viewer
 └── c - Close PDF Viewer
 ```
 
-- `<Leader>kp` : Toggle Live Auto-Preview ON/OFF (Compiles on save and opens PDF via `xdg-open`)
+- `<Leader>kp` : Toggle Live Auto-Preview ON/OFF (Compiles on save and opens PDF via `termux-open`)
 - `<Leader>kv` : Refresh / Jump to PDF Viewer
 - `<Leader>kc` : Close PDF Viewer
+
+### Termux `LD_PRELOAD` Environment Fix
+
+In Termux, Neovim exports `LD_PRELOAD=/data/data/com.termux/files/usr/lib/libluajit.so`. When Pandoc (which uses standard Lua 5.4) is spawned from inside Neovim (`jobstart`), force-preloaded LuaJIT symbols cause dynamic symbol conflicts resulting in `PANIC: unprotected error in call to Lua API` (exit code 1).
+
+This configuration automatically prepends `env LD_PRELOAD=` to all Knap execution routines ([knap.lua](file:///data/data/com.termux/files/home/.config/nvim/lua/plugins/knap.lua)), ensuring clean, error-free PDF background rendering:
+
+```lua
+textopdf = "env LD_PRELOAD= pandoc %docroot% -o %outputfile% --pdf-engine=typst",
+mdtopdf = "env LD_PRELOAD= pandoc %docroot% -o %outputfile% --pdf-engine=typst",
+```
+
+---
+
+## 🤖 Smali (Android Bytecode) LSP Environment
+
+This setup includes a native **Smali Language Server (`smali_lsp`)** and **Tree-sitter Smali** environment for Android bytecode reverse engineering.
+
+### Smali Features
+1. **Smali LSP (`smali_lsp`)**: Real-time syntax and semantic diagnostics (`textDocument/publishDiagnostics`), class/method document symbols, declaration lookups, and autocompletion.
+2. **Global Binary Launcher**: Executable launcher at `~/.local/bin/smali-lsp` running the high-performance Kotlin/ANTLR shadow JAR (`smali-lsp-1.5.0.jar`).
+3. **Automatic Workspace Detection**: Automatically attaches to project roots containing `.git`, `AndroidManifest.xml`, or `apktool.yml`, with single-file fallback.
+4. **Tree-sitter Smali**: Fast syntax highlighting and AST node parsing via `nvim-treesitter`.
 
 ---
 
@@ -234,7 +255,7 @@ Always use Termux's native package manager to fetch 32-bit compiled binaries:
 
 ```bash
 pkg update && pkg upgrade -y
-pkg install -y git neovim build-essential clang rust luarocks nodejs-lts python tree-sitter
+pkg install -y git neovim build-essential clang rust luarocks nodejs-lts python tree-sitter typst pandoc
 ```
 
 ### 3. Enable TUR (Termux User Repository) for Missing Packages

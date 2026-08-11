@@ -12,6 +12,25 @@ return {
       end
     end
 
+    vim.filetype.add { extension = { smali = "smali" } }
+
+    -- Register custom smali_lsp in lspconfig if not already registered
+    local configs = require "lspconfig.configs"
+    if not configs.smali_lsp then
+      configs.smali_lsp = {
+        default_config = {
+          cmd = { "/data/data/com.termux/files/home/.local/bin/smali-lsp" },
+          filetypes = { "smali" },
+          root_dir = function(fname)
+            local util = require "lspconfig.util"
+            local path = type(fname) == "string" and fname or vim.api.nvim_buf_get_name(fname)
+            return util.root_pattern(".git", "AndroidManifest.xml", "apktool.yml")(path) or util.find_git_ancestor(path) or vim.fs.dirname(path)
+          end,
+          name = "smali_lsp",
+        },
+      }
+    end
+
     -- Detect Termux-installed LSPs
     add("lua_ls", "/data/data/com.termux/files/usr/bin/lua-language-server")
     add("bashls", "/data/data/com.termux/files/usr/bin/bash-language-server")
@@ -24,6 +43,7 @@ return {
     add("texlab", "/data/data/com.termux/files/usr/bin/texlab")
     add("texlab", "/data/data/com.termux/files/home/.cargo/bin/texlab")
     add("digestif", "/data/data/com.termux/files/usr/bin/digestif")
+    add("smali_lsp", "/data/data/com.termux/files/home/.local/bin/smali-lsp")
 
     return {
       mason = false,
@@ -120,10 +140,46 @@ return {
               and { "/data/data/com.termux/files/home/.cargo/bin/texlab" }
               or { "texlab" }),
           filetypes = { "tex", "plaintex", "bib" },
+          settings = {
+            texlab = {
+              diagnostics = {
+                ignoredPatterns = { "Unused label" },
+              },
+            },
+          },
+        },
+
+        smali_lsp = {
+          cmd = { "/data/data/com.termux/files/home/.local/bin/smali-lsp" },
+          filetypes = { "smali" },
+          root_dir = function(fname)
+            local util = require "lspconfig.util"
+            local path = type(fname) == "string" and fname or vim.api.nvim_buf_get_name(fname)
+            return util.root_pattern(".git", "AndroidManifest.xml", "apktool.yml")(path) or util.find_git_ancestor(path) or vim.fs.dirname(path)
+          end,
         },
       },
 
       handlers = {
+        smali_lsp = function(server, opts)
+          local server_opts = vim.tbl_deep_extend("force", {
+            cmd = { "/data/data/com.termux/files/home/.local/bin/smali-lsp" },
+            filetypes = { "smali" },
+            root_dir = function(fname)
+              local util = require "lspconfig.util"
+              local path = type(fname) == "string" and fname or vim.api.nvim_buf_get_name(fname)
+              return util.root_pattern(".git", "AndroidManifest.xml", "apktool.yml")(path) or util.find_git_ancestor(path) or vim.fs.dirname(path)
+            end,
+          }, opts or {})
+
+          local configs = require "lspconfig.configs"
+          if not configs.smali_lsp then
+            configs.smali_lsp = {
+              default_config = server_opts,
+            }
+          end
+          require("lspconfig").smali_lsp.setup(server_opts)
+        end,
         function(server, opts) require("lspconfig")[server].setup(opts) end,
       },
 

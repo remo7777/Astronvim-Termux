@@ -1,32 +1,49 @@
 ---@type LazySpec
 return {
   "frabjous/knap",
-  ft = { "tex", "plaintex" },
+  ft = { "tex", "plaintex", "markdown" },
   init = function()
-    local kcfg = {
+    vim.g.knap_settings = {
       texoutputext = "pdf",
-      textopdf = 'sh -c "if command -v pdflatex >/dev/null 2>&1; then pdflatex -interaction=nonstopmode %docroot%; else curl -s -F \"file=@%docroot%\" https://latex.ytotech.com/builds/sync -o %outputfile%; fi"',
-      textopdfviewerlaunch = "xdg-open %outputfile%",
+      textopdf = "env LD_PRELOAD= pandoc %docroot% -o %outputfile% --pdf-engine=typst",
+      textopdfviewerlaunch = "termux-open %outputfile%",
       textopdfviewerrefresh = "none",
       textopdfshorterror = "none",
+      mdoutputext = "pdf",
+      mdtopdf = "env LD_PRELOAD= pandoc %docroot% -o %outputfile% --pdf-engine=typst",
+      mdtopdfviewerlaunch = "termux-open %outputfile%",
+      mdtopdfviewerrefresh = "none",
+      markdownoutputext = "pdf",
+      markdowntopdf = "env LD_PRELOAD= pandoc %docroot% -o %outputfile% --pdf-engine=typst",
+      markdowntopdfviewerlaunch = "termux-open %outputfile%",
+      markdowntopdfviewerrefresh = "none",
     }
-    vim.g.knap_settings = kcfg
+  end,
+  config = function()
+    local function setup_keymaps(buf)
+      vim.keymap.set("n", "<Leader>kp", function() require("knap").toggle_autopreviewing() end, { buffer = buf, desc = "Toggle Live PDF Preview" })
+      vim.keymap.set("n", "<Leader>kv", function() require("knap").forward_jump() end, { buffer = buf, desc = "Jump to PDF Viewer" })
+      vim.keymap.set("n", "<Leader>kc", function() require("knap").close_viewer() end, { buffer = buf, desc = "Close PDF Viewer" })
 
-    -- Set keymaps and WhichKey group ONLY on LaTeX buffers (tex / plaintex)
+      local wk_ok, wk = pcall(require, "which-key")
+      if wk_ok then
+        wk.add({
+          { "<Leader>k", group = "󰈦 Preview", buffer = buf },
+        })
+      end
+    end
+
+    -- Setup for current buffer when plugin loads
+    local ft = vim.bo.filetype
+    if ft == "tex" or ft == "plaintex" or ft == "markdown" then
+      setup_keymaps(0)
+    end
+
+    -- Setup for any newly opened buffers
     vim.api.nvim_create_autocmd("FileType", {
-      pattern = { "tex", "plaintex" },
+      pattern = { "tex", "plaintex", "markdown" },
       callback = function(event)
-        local buf = event.buf
-        vim.keymap.set("n", "<Leader>kp", function() require("knap").toggle_autopreviewing() end, { buffer = buf, desc = "Toggle Live PDF Preview" })
-        vim.keymap.set("n", "<Leader>kv", function() require("knap").forward_jump() end, { buffer = buf, desc = "Jump to PDF Viewer" })
-        vim.keymap.set("n", "<Leader>kc", function() require("knap").close_viewer() end, { buffer = buf, desc = "Close PDF Viewer" })
-
-        local wk_ok, wk = pcall(require, "which-key")
-        if wk_ok then
-          wk.add({
-            { "<Leader>k", group = "󰈦 LaTeX", buffer = buf },
-          })
-        end
+        setup_keymaps(event.buf)
       end,
     })
   end,
