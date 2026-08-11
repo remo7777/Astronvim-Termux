@@ -69,6 +69,8 @@ apt install -y \
   build-essential \
   clang \
   ccls \
+  ripgrep \
+  fzf \
   rust \
   rust-analyzer \
   lua-language-server \
